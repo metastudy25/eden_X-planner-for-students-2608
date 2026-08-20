@@ -297,7 +297,7 @@
     <label>이름</label>
     <input type="text" id="loginName" placeholder="이름을 입력하세요" autocomplete="name">
     <label>비밀번호</label>
-    <input type="password" id="loginPw" placeholder="비밀번호 4자리" maxlength="20"
+    <input type="password" id="loginPw" placeholder="비밀번호 6자리" maxlength="20"
            onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn-login" onclick="doLogin()">로그인</button>
     <div class="login-err" id="loginErr"></div>
@@ -459,14 +459,17 @@
 ══════════════════════════════════════════ */
 const SHEET_ID   = '1uYae8-WH_aopvSFTgRTcQfuSNPE1E1S9lttA5-D8wBg';
 const SHEET_NAME = 'Records';   // 시트 탭 이름
-const GAS_URL    = 'https://script.google.com/macros/s/AKfycby3QctrBE9HahxlwdOHEJkxhuriL0zO8_pUYJ9I0gPfJ5Kp5HuK2iAq04qaRs-TbCmQ/exec';          // ← Google Apps Script 웹앱 URL (배포 후 여기에 붙여넣기)
+const GAS_URL    = '';          // ← Google Apps Script 웹앱 URL (배포 후 여기에 붙여넣기)
 
 /* ══════════════════════════════════════════
-   학생 계정 (이름: 비번) — 원장이 직접 추가
+   학생 계정 — 구글 시트 'Students' 탭에서 로드
+   컬럼 구조: name | password
+   (GAS URL 미설정 시 아래 fallback 사용)
 ══════════════════════════════════════════ */
-const ACCOUNTS = {
-  '이연우': '1234',
-  // '홍길동': '5678',  // 학생 추가 예시
+let ACCOUNTS = {};   // 시트 로드 후 채워짐
+const ACCOUNTS_FALLBACK = {
+  // GAS URL 없을 때 임시 사용 — 배포 후 삭제 가능
+  '이연우': '123456',
 };
 
 /* ══════════════════════════════════════════
@@ -549,14 +552,52 @@ function timeToMin(t) {
 }
 
 /* ══════════════════════════════════════════
+   학생 계정 로드 (구글 시트 Students 탭)
+══════════════════════════════════════════ */
+async function loadAccounts() {
+  setLoginStatus('🔄 계정 정보 확인 중...', '#8aab97');
+  if (!GAS_URL) {
+    ACCOUNTS = { ...ACCOUNTS_FALLBACK };
+    setLoginStatus('', '');
+    return;
+  }
+  try {
+    const url = `${GAS_URL}?action=getAccounts`;
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (json.status === 'ok' && json.data) {
+      ACCOUNTS = {};
+      json.data.forEach(row => { if (row.name && row.password) ACCOUNTS[row.name] = String(row.password); });
+      setLoginStatus('', '');
+    } else {
+      ACCOUNTS = { ...ACCOUNTS_FALLBACK };
+      setLoginStatus('⚠️ 계정 로드 실패 — 기본값 사용', '#e63946');
+    }
+  } catch (e) {
+    ACCOUNTS = { ...ACCOUNTS_FALLBACK };
+    setLoginStatus('⚠️ 네트워크 오류 — 기본값 사용', '#e63946');
+  }
+}
+function setLoginStatus(msg, color) {
+  const el = document.getElementById('loginErr');
+  el.textContent = msg;
+  el.style.color = color || '#e63946';
+}
+
+/* ══════════════════════════════════════════
    로그인 / 로그아웃
 ══════════════════════════════════════════ */
-function doLogin() {
+async function doLogin() {
   const name = document.getElementById('loginName').value.trim();
   const pw   = document.getElementById('loginPw').value.trim();
-  if (!name) { document.getElementById('loginErr').textContent='이름을 입력하세요.'; return; }
-  if (ACCOUNTS[name] === undefined) { document.getElementById('loginErr').textContent='등록되지 않은 이름입니다.'; return; }
-  if (ACCOUNTS[name] !== pw) { document.getElementById('loginErr').textContent='비밀번호가 맞지 않습니다.'; return; }
+  if (!name) { setLoginStatus('이름을 입력하세요.'); return; }
+  if (pw.length < 6) { setLoginStatus('비밀번호는 6자리 이상이어야 합니다.'); return; }
+
+  // 계정 아직 안 로드됐으면 재시도
+  if (Object.keys(ACCOUNTS).length === 0) await loadAccounts();
+
+  if (ACCOUNTS[name] === undefined) { setLoginStatus('등록되지 않은 이름입니다.'); return; }
+  if (ACCOUNTS[name] !== pw)        { setLoginStatus('비밀번호가 맞지 않습니다.'); return; }
   currentUser = name;
   localStorage.setItem('eden_user', name);
   startApp();
@@ -569,11 +610,13 @@ function doLogout() {
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('loginName').value='';
   document.getElementById('loginPw').value='';
-  document.getElementById('loginErr').textContent='';
+  setLoginStatus('', '');
+  loadAccounts(); // 로그아웃 시 최신 계정 다시 로드
 }
-window.onload = () => {
+window.onload = async () => {
+  await loadAccounts();
   const saved = localStorage.getItem('eden_user');
-  if (saved && ACCOUNTS[saved] !== undefined) { currentUser=saved; startApp(); }
+  if (saved && ACCOUNTS[saved] !== undefined) { currentUser = saved; startApp(); }
 };
 
 /* ══════════════════════════════════════════
