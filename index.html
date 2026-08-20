@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이든X학원 · 1일 점검 앱</title>
+<style>
+  /* ── 토큰 ── */
+  :root {
+    --green-dark:  #2d6a4f;
+    --green-mid:   #40916c;
+    --green-light: #74c69d;
+    --green-pale:  #d8f3dc;
+    --green-bg:    #f0faf3;
+    --yellow-acc:  #f9c74f;
+    --red-acc:     #e63946;
+    --text-dark:   #1b2d24;
+    --text-mid:    #4a6358;
+    --text-light:  #8aab97;
+    --white:       #ffffff;
+    --card-shadow: 0 2px 12px rgba(45,106,79,.12);
+    --radius:      14px;
+    --radius-sm:   8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--green-bg);
+    color: var(--text-dark);
+    min-height: 100vh;
+  }
+
+  /* ── 로그인 화면 ── */
+  #loginScreen {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 100vh; padding: 24px;
+  }
+  .login-card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 40px 32px;
+    width: 100%; max-width: 360px; text-align: center;
+  }
+  .login-logo { font-size: 2.4rem; margin-bottom: 6px; }
+  .login-brand { font-size: 1.1rem; font-weight: 700; color: var(--green-dark); margin-bottom: 4px; }
+  .login-sub { font-size: .8rem; color: var(--text-light); margin-bottom: 28px; }
+  .login-card label { display: block; text-align: left; font-size: .8rem; font-weight: 600; color: var(--text-mid); margin-bottom: 4px; }
+  .login-card input {
+    width: 100%; padding: 11px 14px; border: 1.5px solid #d0e8d8;
+    border-radius: var(--radius-sm); font-size: .95rem;
+    outline: none; transition: border .2s; margin-bottom: 14px;
+  }
+  .login-card input:focus { border-color: var(--green-mid); }
+  .btn-login {
+    width: 100%; padding: 13px; background: var(--green-dark);
+    color: #fff; border: none; border-radius: var(--radius-sm);
+    font-size: 1rem; font-weight: 700; cursor: pointer; transition: background .2s;
+  }
+  .btn-login:hover { background: var(--green-mid); }
+  .login-err { color: var(--red-acc); font-size: .83rem; margin-top: 10px; min-height: 18px; }
+
+  /* ── 헤더 ── */
+  header {
+    background: var(--green-dark); color: #fff;
+    padding: 0 20px; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  }
+  .header-inner {
+    max-width: 800px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-logo { font-size: 1.3rem; }
+  .header-title { font-size: 1rem; font-weight: 700; }
+  .header-name { font-size: .82rem; color: var(--green-light); }
+  .btn-logout {
+    background: rgba(255,255,255,.15); border: none; color: #fff;
+    padding: 6px 12px; border-radius: 20px; font-size: .78rem;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,.28); }
+
+  /* ── 탭 네비 ── */
+  .tab-nav {
+    background: var(--white); border-bottom: 1px solid #dceee3;
+    position: sticky; top: 56px; z-index: 90;
+  }
+  .tab-nav-inner {
+    max-width: 800px; margin: 0 auto;
+    display: flex; overflow-x: auto;
+  }
+  .tab-btn {
+    flex: none; padding: 13px 20px; border: none; background: none;
+    font-size: .85rem; font-weight: 600; color: var(--text-light);
+    cursor: pointer; border-bottom: 3px solid transparent;
+    white-space: nowrap; transition: all .2s;
+  }
+  .tab-btn.active { color: var(--green-dark); border-bottom-color: var(--green-dark); }
+
+  /* ── 메인 컨텐츠 ── */
+  main { max-width: 800px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  /* ── 패널 ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── 날짜 선택 바 ── */
+  .date-bar {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .date-bar-left { display: flex; flex-direction: column; gap: 2px; }
+  .date-label { font-size: .75rem; color: var(--text-light); }
+  .date-value { font-size: 1.1rem; font-weight: 700; color: var(--green-dark); }
+  .date-bar input[type=date] {
+    border: 1.5px solid #d0e8d8; border-radius: var(--radius-sm);
+    padding: 7px 10px; font-size: .85rem; color: var(--text-dark);
+    outline: none; background: var(--green-bg);
+  }
+
+  /* ── 등원/하원 카드 ── */
+  .attend-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 16px;
+  }
+  .attend-card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 16px;
+    text-align: center;
+  }
+  .attend-card .ac-label { font-size: .75rem; color: var(--text-light); margin-bottom: 6px; }
+  .attend-card .ac-time { font-size: 1.3rem; font-weight: 700; color: var(--green-dark); min-height: 32px; }
+  .attend-card .ac-btn {
+    margin-top: 10px; width: 100%; padding: 9px;
+    border: none; border-radius: var(--radius-sm);
+    font-size: .85rem; font-weight: 700; cursor: pointer; transition: all .2s;
+  }
+  .btn-checkin  { background: var(--green-pale); color: var(--green-dark); }
+  .btn-checkout { background: #fdecea; color: var(--red-acc); }
+  .btn-checkin:hover  { background: var(--green-light); color: #fff; }
+  .btn-checkout:hover { background: var(--red-acc); color: #fff; }
+
+  /* ── 순수 공부 시간 배너 ── */
+  .study-banner {
+    background: linear-gradient(135deg, var(--green-dark), var(--green-mid));
+    color: #fff; border-radius: var(--radius); padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; box-shadow: var(--card-shadow);
+  }
+  .sb-label { font-size: .82rem; opacity: .85; }
+  .sb-time { font-size: 1.8rem; font-weight: 700; letter-spacing: .04em; }
+  .sb-goal { font-size: .78rem; opacity: .7; margin-top: 2px; }
+
+  /* ── 섹션 타이틀 ── */
+  .sec-title {
+    font-size: .8rem; font-weight: 700; color: var(--text-light);
+    letter-spacing: .08em; text-transform: uppercase;
+    margin: 20px 0 8px;
+  }
+
+  /* ── 체크리스트 카드 ── */
+  .check-card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); margin-bottom: 10px; overflow: hidden;
+  }
+  .check-card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; background: var(--green-pale);
+    border-bottom: 1px solid #c8e6d0;
+  }
+  .cc-time { font-size: .78rem; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+  .cc-subject { font-size: .92rem; font-weight: 700; color: var(--text-dark); flex: 1; }
+  .cc-tag {
+    font-size: .7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600;
+  }
+  .tag-math    { background: #e8f4fd; color: #1a6b9e; }
+  .tag-english { background: #fef3e2; color: #b45309; }
+  .tag-korean  { background: #f3e8ff; color: #6b21a8; }
+  .tag-history { background: #fef9e7; color: #92400e; }
+  .tag-vocab   { background: #e0f2f1; color: #00695c; }
+  .tag-etc     { background: #f5f5f5; color: #555; }
+
+  /* ── 체크 아이템 ── */
+  .check-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 11px 16px; border-bottom: 1px solid #f0f5f2;
+    cursor: pointer; transition: background .15s;
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-item:hover { background: var(--green-bg); }
+  .check-item.done { opacity: .6; }
+  .check-item.done .ci-text { text-decoration: line-through; }
+  .ci-box {
+    width: 20px; height: 20px; border-radius: 5px;
+    border: 2px solid #c8e6d0; background: #fff;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: all .2s; margin-top: 1px;
+  }
+  .check-item.done .ci-box {
+    background: var(--green-mid); border-color: var(--green-mid);
+  }
+  .ci-check { display: none; color: #fff; font-size: .8rem; font-weight: 700; }
+  .check-item.done .ci-check { display: block; }
+  .ci-text { font-size: .88rem; color: var(--text-dark); line-height: 1.45; flex: 1; }
+  .ci-detail { font-size: .76rem; color: var(--text-light); margin-top: 2px; }
+
+  /* ── 메모 ── */
+  .memo-area {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .memo-area label { font-size: .8rem; font-weight: 700; color: var(--text-mid); display: block; margin-bottom: 6px; }
+  .memo-area textarea {
+    width: 100%; height: 80px; border: 1.5px solid #d0e8d8;
+    border-radius: var(--radius-sm); padding: 8px 10px;
+    font-size: .85rem; resize: vertical; outline: none; transition: border .2s;
+    font-family: inherit; color: var(--text-dark);
+  }
+  .memo-area textarea:focus { border-color: var(--green-mid); }
+
+  /* ── 저장 버튼 ── */
+  .save-row {
+    display: flex; gap: 10px; margin-top: 16px;
+  }
+  .btn-save {
+    flex: 1; padding: 14px; border: none; border-radius: var(--radius-sm);
+    font-size: .95rem; font-weight: 700; cursor: pointer; transition: all .2s;
+  }
+  .btn-save-primary { background: var(--green-dark); color: #fff; }
+  .btn-save-primary:hover { background: var(--green-mid); }
+  .btn-save-sec { background: var(--green-pale); color: var(--green-dark); flex: none; padding: 14px 20px; }
+  .save-msg { font-size: .82rem; color: var(--green-mid); text-align: center; margin-top: 8px; min-height: 18px; }
+
+  /* ── 통계 패널 ── */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--card-shadow); padding: 18px 16px; text-align: center;
+  }
+  .stat-card .sc-num { font-size: 2rem; font-weight: 800; color: var(--green-dark); }
+  .stat-card .sc-unit { font-size: .78rem; color: var(--text-light); margin-top: 2px; }
+  .stat-card .sc-label { font-size: .82rem; color: var(--text-mid); margin-top: 6px; font-weight: 600; }
+
+  .hist-item {
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--card-shadow); padding: 14px 16px;
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .hi-left { display: flex; flex-direction: column; gap: 2px; }
+  .hi-date { font-size: .88rem; font-weight: 700; color: var(--text-dark); }
+  .hi-detail { font-size: .75rem; color: var(--text-light); }
+  .hi-time { font-size: 1.1rem; font-weight: 800; color: var(--green-dark); }
+
+  .progress-bar-wrap { height: 8px; background: var(--green-pale); border-radius: 4px; margin: 6px 0 0; }
+  .progress-bar { height: 100%; background: var(--green-mid); border-radius: 4px; transition: width .4s; }
+
+  /* ── 이력 패널 ── */
+  .log-filter {
+    display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .log-filter select, .log-filter input {
+    padding: 7px 10px; border: 1.5px solid #d0e8d8; border-radius: var(--radius-sm);
+    font-size: .83rem; outline: none; background: var(--white);
+  }
+  .log-table-wrap { background: var(--white); border-radius: var(--radius); box-shadow: var(--card-shadow); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+  thead tr { background: var(--green-pale); }
+  th { padding: 10px 12px; text-align: left; font-weight: 700; color: var(--green-dark); font-size: .78rem; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f5f2; color: var(--text-dark); }
+  tr:last-child td { border-bottom: none; }
+  .td-rate { font-weight: 700; color: var(--green-dark); }
+  .no-data { text-align: center; padding: 32px; color: var(--text-light); font-size: .88rem; }
+
+  /* ── 스피너 ── */
+  .spinner { display: none; text-align: center; padding: 12px; color: var(--text-light); font-size: .83rem; }
+  .spinner.show { display: block; }
+
+  @media (max-width: 480px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .attend-row { grid-template-columns: 1fr 1fr; }
+    th, td { padding: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     로그인 화면
+══════════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">🌿</div>
+    <div class="login-brand">이든X학원</div>
+    <div class="login-sub">1일 학습 점검 시스템</div>
+    <label>이름</label>
+    <input type="text" id="loginName" placeholder="이름을 입력하세요" autocomplete="name">
+    <label>비밀번호</label>
+    <input type="password" id="loginPw" placeholder="비밀번호 4자리" maxlength="20"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">로그인</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     메인 앱
+══════════════════════════════════════════ -->
+<div id="appScreen" style="display:none">
+
+  <header>
+    <div class="header-inner">
+      <div class="header-left">
+        <span class="header-logo">🌿</span>
+        <div>
+          <div class="header-title">이든X학원 1일 점검</div>
+          <div class="header-name" id="headerName"></div>
+        </div>
+      </div>
+      <button class="btn-logout" onclick="doLogout()">로그아웃</button>
+    </div>
+  </header>
+
+  <div class="tab-nav">
+    <div class="tab-nav-inner">
+      <button class="tab-btn active" onclick="showTab('today')">📋 오늘 점검</button>
+      <button class="tab-btn" onclick="showTab('stats')">📊 통계</button>
+      <button class="tab-btn" onclick="showTab('history')">📜 이력</button>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- ── 오늘 점검 패널 ── -->
+    <div class="panel active" id="panel-today">
+
+      <!-- 날짜 선택 -->
+      <div class="date-bar">
+        <div class="date-bar-left">
+          <div class="date-label">학습일</div>
+          <div class="date-value" id="dateDisplay">-</div>
+        </div>
+        <input type="date" id="datePicker" onchange="onDateChange()">
+      </div>
+
+      <!-- 등원/하원 -->
+      <div class="attend-row">
+        <div class="attend-card">
+          <div class="ac-label">🏫 등원 시각</div>
+          <div class="ac-time" id="checkinTime">--:--</div>
+          <button class="ac-btn btn-checkin" onclick="stampCheckin()">등원 체크</button>
+        </div>
+        <div class="attend-card">
+          <div class="ac-label">🏠 하원 시각</div>
+          <div class="ac-time" id="checkoutTime">--:--</div>
+          <button class="ac-btn btn-checkout" onclick="stampCheckout()">하원 체크</button>
+        </div>
+      </div>
+
+      <!-- 순수 공부시간 배너 -->
+      <div class="study-banner">
+        <div>
+          <div class="sb-label">⏱ 오늘 순수 공부시간</div>
+          <div class="sb-goal" id="studyGoal">목표: 5시간 이상</div>
+        </div>
+        <div class="sb-time" id="studyTime">0h 00m</div>
+      </div>
+
+      <!-- 체크리스트 (요일별 자동 렌더) -->
+      <div id="checklistArea"></div>
+
+      <!-- 오늘 메모 -->
+      <div class="sec-title">📝 오늘 한마디</div>
+      <div class="memo-area">
+        <label>스스로 평가 / 원장 선생님께 한마디</label>
+        <textarea id="dailyMemo" placeholder="오늘 공부하면서 느낀 점, 어려웠던 것, 다음에 집중할 것을 써보세요."></textarea>
+      </div>
+
+      <div class="save-row">
+        <button class="btn-save btn-save-primary" onclick="saveToday()">💾 오늘 기록 저장</button>
+      </div>
+      <div class="save-msg" id="saveMsg"></div>
+      <div class="spinner" id="saveSpinner">저장 중... ⏳</div>
+
+    </div><!-- /panel-today -->
+
+    <!-- ── 통계 패널 ── -->
+    <div class="panel" id="panel-stats">
+      <div class="sec-title">이번 주 공부시간</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="sc-num" id="weekTotal">0</div>
+          <div class="sc-unit">시간</div>
+          <div class="sc-label">주간 누적</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-num" id="weekDays">0</div>
+          <div class="sc-unit">일</div>
+          <div class="sc-label">출석일수</div>
+        </div>
+      </div>
+      <div id="weekBars"></div>
+
+      <div class="sec-title" style="margin-top:24px">이번 달 공부시간</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="sc-num" id="monthTotal">0</div>
+          <div class="sc-unit">시간</div>
+          <div class="sc-label">월간 누적</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-num" id="monthAvg">0</div>
+          <div class="sc-unit">시간/일</div>
+          <div class="sc-label">일평균</div>
+        </div>
+      </div>
+      <div class="sec-title">과목별 체크 달성률</div>
+      <div id="subjectStats"></div>
+
+      <div class="spinner" id="statsSpinner">불러오는 중... ⏳</div>
+      <div style="text-align:right;margin-top:12px">
+        <button class="btn-save btn-save-sec" onclick="loadStats()">🔄 새로고침</button>
+      </div>
+    </div>
+
+    <!-- ── 이력 패널 ── -->
+    <div class="panel" id="panel-history">
+      <div class="log-filter">
+        <input type="month" id="filterMonth" onchange="loadHistory()">
+        <select id="filterDay" onchange="loadHistory()">
+          <option value="">전체 요일</option>
+          <option>월</option><option>화</option><option>수</option>
+          <option>목</option><option>금</option>
+        </select>
+      </div>
+      <div class="log-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>날짜</th><th>요일</th><th>등원</th><th>하원</th>
+              <th>공부시간</th><th>달성률</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody">
+            <tr><td colspan="6" class="no-data">📂 기록을 불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="spinner" id="histSpinner">불러오는 중... ⏳</div>
+    </div>
+
+  </main>
+</div><!-- /appScreen -->
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIG — 본인 스프레드시트 정보로 교체
+══════════════════════════════════════════ */
+const SHEET_ID   = '1uYae8-WH_aopvSFTgRTcQfuSNPE1E1S9lttA5-D8wBg';
+const SHEET_NAME = 'Records';   // 시트 탭 이름
+const GAS_URL    = 'https://script.google.com/macros/s/AKfycby3QctrBE9HahxlwdOHEJkxhuriL0zO8_pUYJ9I0gPfJ5Kp5HuK2iAq04qaRs-TbCmQ/exec';          // ← Google Apps Script 웹앱 URL (배포 후 여기에 붙여넣기)
+
+/* ══════════════════════════════════════════
+   학생 계정 (이름: 비번) — 원장이 직접 추가
+══════════════════════════════════════════ */
+const ACCOUNTS = {
+  '이연우': '1234',
+  // '홍길동': '5678',  // 학생 추가 예시
+};
+
+/* ══════════════════════════════════════════
+   시간표 데이터
+══════════════════════════════════════════ */
+const SCHEDULE = {
+  월: [
+    { time:'18:00~18:40', subject:'영단어 40개', tag:'vocab',
+      items:['워드마스터 수능2000 — 오늘 분량 40개 암기','모르는 단어에 체크 표시','다 외운 후 다시 셀프 테스트'] },
+    { time:'18:40~19:00', subject:'역사/사회 간단복습', tag:'history',
+      items:['오늘 배운 내용 1회독 (교재·필기 확인)','핵심 키워드 3개 이상 떠올리기'] },
+    { time:'19:00~20:00', subject:'수학 문제풀이 (1h)', tag:'math',
+      items:['① 5분: 오늘 단원 개념·공식 훑기','② 40분: 유형 12~15문제 풀기 (라이트센)','③ 15분: 틀린 문제·막힌 문제 다시 풀기','오답 원인 한 줄 메모'] },
+    { time:'20:00~21:00', subject:'국어 비문학 + 국어내신복습', tag:'korean',
+      items:['비문학 지문 1~2개 (문풀·지문분석)','예비매삼비 해당 파트 확인','국어 내신 복습 (교과서·필기)'] },
+    { time:'21:00~21:40', subject:'수학 문제풀이 (40m)', tag:'math',
+      items:['① 5분: 개념·공식 재확인','② 25분: 유형 문제 추가 풀이','③ 10분: 틀린 문제 재점검','※ 21:40 퇴실 (수학과외)'] },
+  ],
+  화: [
+    { time:'20:00~21:00', subject:'영단어 40개 + 정리복습노트 보기', tag:'vocab',
+      items:['워드마스터 수능2000 — 오늘 분량 40개 암기','정리한 복습노트 전체 훑기','모르는 항목 체크 후 재암기'] },
+    { time:'21:00~21:40', subject:'수학학원 복습 및 숙제', tag:'math',
+      items:['수학학원 당일 내용 복습','숙제 완료 후 확인','틀린 문제 표시 및 재풀이','※ 21:40 퇴실 (수학과외)'] },
+  ],
+  수: [
+    { time:'21:30~22:00', subject:'영단어 40개', tag:'vocab',
+      items:['워드마스터 수능2000 — 오늘 분량 40개 암기','셀프 테스트 완료'] },
+    { time:'22:00~23:00', subject:'영어학원 복습 및 숙제 (1)', tag:'english',
+      items:['영어학원 당일 수업 내용 복습','숙제 1차 완료'] },
+    { time:'23:00~23:30', subject:'영어학원 복습 및 숙제 (2)', tag:'english',
+      items:['숙제 마무리 및 최종 확인','단어·표현 재점검'] },
+  ],
+  목: [
+    { time:'20:00~21:00', subject:'영단어 40개 + 정리복습노트 보기', tag:'vocab',
+      items:['워드마스터 수능2000 — 오늘 분량 40개 암기','정리한 복습노트 전체 훑기','모르는 항목 재암기'] },
+    { time:'21:00~21:40', subject:'수학학원 복습 및 숙제', tag:'math',
+      items:['수학학원 당일 내용 복습','숙제 완료','틀린 문제 재풀이'] },
+    { time:'22:00~23:00', subject:'수학학원 숙제 (추가)', tag:'math',
+      items:['남은 숙제 마무리','공통수학 라이트센·학원자체프린트 확인'] },
+    { time:'23:00~23:30', subject:'수학학원 숙제 마무리', tag:'math',
+      items:['최종 숙제 점검','다음날 수업 준비 확인'] },
+  ],
+  금: [
+    { time:'21:30~22:00', subject:'영단어 40개', tag:'vocab',
+      items:['워드마스터 수능2000 — 오늘 분량 40개 암기','셀프 테스트'] },
+    { time:'22:00~23:00', subject:'영어학원 복습 및 숙제 (1)', tag:'english',
+      items:['영어학원 당일 내용 복습','숙제 1차 완료'] },
+    { time:'23:00~23:30', subject:'영어학원 복습 및 숙제 (2)', tag:'english',
+      items:['숙제 마무리 및 확인','단어·표현 재점검'] },
+  ],
+};
+const DAY_KR = ['일','월','화','수','목','금','토'];
+
+/* ══════════════════════════════════════════
+   상태
+══════════════════════════════════════════ */
+let currentUser = null;
+let currentDate = todayStr();
+let dayData = {};   // { checkin, checkout, checks:{}, memo }
+let allRecords = []; // 구글시트에서 불러온 전체
+
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+function fmtDate(s) {
+  const d = new Date(s + 'T00:00:00');
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DAY_KR[d.getDay()]})`;
+}
+function dayOfWeek(s) {
+  return DAY_KR[new Date(s + 'T00:00:00').getDay()];
+}
+function minToHM(min) {
+  if (!min || min <= 0) return '0h 00m';
+  return `${Math.floor(min/60)}h ${String(min%60).padStart(2,'0')}m`;
+}
+function timeToMin(t) {
+  if (!t || t==='--:--') return 0;
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
+}
+
+/* ══════════════════════════════════════════
+   로그인 / 로그아웃
+══════════════════════════════════════════ */
+function doLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  const pw   = document.getElementById('loginPw').value.trim();
+  if (!name) { document.getElementById('loginErr').textContent='이름을 입력하세요.'; return; }
+  if (ACCOUNTS[name] === undefined) { document.getElementById('loginErr').textContent='등록되지 않은 이름입니다.'; return; }
+  if (ACCOUNTS[name] !== pw) { document.getElementById('loginErr').textContent='비밀번호가 맞지 않습니다.'; return; }
+  currentUser = name;
+  localStorage.setItem('eden_user', name);
+  startApp();
+}
+function doLogout() {
+  if (!confirm('로그아웃 하시겠습니까?')) return;
+  currentUser = null;
+  localStorage.removeItem('eden_user');
+  document.getElementById('appScreen').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginName').value='';
+  document.getElementById('loginPw').value='';
+  document.getElementById('loginErr').textContent='';
+}
+window.onload = () => {
+  const saved = localStorage.getItem('eden_user');
+  if (saved && ACCOUNTS[saved] !== undefined) { currentUser=saved; startApp(); }
+};
+
+/* ══════════════════════════════════════════
+   앱 시작
+══════════════════════════════════════════ */
+function startApp() {
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').style.display='block';
+  document.getElementById('headerName').textContent = currentUser + ' 학생';
+
+  currentDate = todayStr();
+  document.getElementById('datePicker').value = currentDate;
+  document.getElementById('filterMonth').value = currentDate.slice(0,7);
+
+  loadDayData();
+}
+
+/* ══════════════════════════════════════════
+   날짜 변경
+══════════════════════════════════════════ */
+function onDateChange() {
+  currentDate = document.getElementById('datePicker').value;
+  loadDayData();
+}
+
+/* ══════════════════════════════════════════
+   당일 데이터 — localStorage 캐시 + 시트 동기
+══════════════════════════════════════════ */
+function localKey(date) { return `eden_${currentUser}_${date}`; }
+
+function loadDayData() {
+  const stored = localStorage.getItem(localKey(currentDate));
+  dayData = stored ? JSON.parse(stored) : { checkin:'', checkout:'', checks:{}, memo:'' };
+  renderDay();
+  // 시트에서 최신 불러오기 (GAS URL 있을 때)
+  if (GAS_URL) fetchDayFromSheet(currentDate);
+}
+
+function saveDayLocal() {
+  localStorage.setItem(localKey(currentDate), JSON.stringify(dayData));
+}
+
+/* ── 화면 렌더 ── */
+function renderDay() {
+  document.getElementById('dateDisplay').textContent = fmtDate(currentDate);
+  document.getElementById('checkinTime').textContent  = dayData.checkin  || '--:--';
+  document.getElementById('checkoutTime').textContent = dayData.checkout || '--:--';
+  document.getElementById('dailyMemo').value = dayData.memo || '';
+  updateStudyTime();
+  renderChecklist();
+}
+
+function updateStudyTime() {
+  const ci = timeToMin(dayData.checkin);
+  const co = timeToMin(dayData.checkout);
+  let min = (ci && co && co > ci) ? co - ci : 0;
+  document.getElementById('studyTime').textContent = minToHM(min);
+}
+
+/* ── 등원/하원 ── */
+function stampCheckin() {
+  const now = new Date();
+  dayData.checkin = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  saveDayLocal();
+  renderDay();
+}
+function stampCheckout() {
+  const now = new Date();
+  dayData.checkout = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  saveDayLocal();
+  renderDay();
+}
+
+/* ── 체크리스트 렌더 ── */
+function renderChecklist() {
+  const dow = dayOfWeek(currentDate);
+  const slots = SCHEDULE[dow];
+  const area  = document.getElementById('checklistArea');
+
+  if (!slots) {
+    area.innerHTML = `<div class="memo-area" style="text-align:center;padding:28px;color:var(--text-light)">
+      🗓 ${dow}요일은 등록된 학원 일정이 없습니다.<br>자율학습 파이팅! 💪</div>`;
+    return;
+  }
+
+  if (!dayData.checks) dayData.checks = {};
+
+  let html = `<div class="sec-title">${dow}요일 학습 체크리스트</div>`;
+  slots.forEach((slot, si) => {
+    const tagClass = `tag-${slot.tag}`;
+    const tagLabel = {vocab:'어휘',math:'수학',english:'영어',korean:'국어',history:'사회/역사',etc:'기타'}[slot.tag]||'기타';
+    html += `<div class="check-card">
+      <div class="check-card-header">
+        <span class="cc-time">${slot.time}</span>
+        <span class="cc-subject">${slot.subject}</span>
+        <span class="cc-tag ${tagClass}">${tagLabel}</span>
+      </div>`;
+    slot.items.forEach((item, ii) => {
+      const key  = `${si}_${ii}`;
+      const done = !!dayData.checks[key];
+      html += `<div class="check-item${done?' done':''}" onclick="toggleCheck('${key}')">
+        <div class="ci-box"><span class="ci-check">✓</span></div>
+        <div class="ci-text">${item}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  area.innerHTML = html;
+}
+
+function toggleCheck(key) {
+  if (!dayData.checks) dayData.checks = {};
+  dayData.checks[key] = !dayData.checks[key];
+  saveDayLocal();
+  renderChecklist();
+}
+
+/* ══════════════════════════════════════════
+   탭 전환
+══════════════════════════════════════════ */
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name==='stats')   loadStats();
+  if (name==='history') loadHistory();
+}
+
+/* ══════════════════════════════════════════
+   Google Apps Script 연동 (저장/불러오기)
+   GAS_URL이 비어 있으면 localStorage만 사용
+══════════════════════════════════════════ */
+async function saveToday() {
+  saveDayLocal();
+  const msg  = document.getElementById('saveMsg');
+  const spin = document.getElementById('saveSpinner');
+
+  if (!GAS_URL) {
+    msg.textContent = '✅ 기기에 저장 완료! (Google Sheets 연동은 GAS URL 설정 후 활성화됩니다)';
+    setTimeout(()=>msg.textContent='',4000);
+    return;
+  }
+
+  spin.classList.add('show'); msg.textContent='';
+  try {
+    const dow    = dayOfWeek(currentDate);
+    const slots  = SCHEDULE[dow] || [];
+    let total=0, done=0;
+    slots.forEach((slot,si)=>slot.items.forEach((_,ii)=>{
+      total++; if(dayData.checks?.[`${si}_${ii}`]) done++;
+    }));
+    const rate = total ? Math.round(done/total*100) : 0;
+    const ci = timeToMin(dayData.checkin);
+    const co = timeToMin(dayData.checkout);
+    const studyMin = (ci && co && co>ci) ? co-ci : 0;
+
+    const payload = {
+      action:'save', user: currentUser, date: currentDate,
+      checkin: dayData.checkin||'', checkout: dayData.checkout||'',
+      studyMin, rate, memo: dayData.memo||'',
+      checks: JSON.stringify(dayData.checks||{})
+    };
+    const res = await fetch(GAS_URL, {
+      method:'POST', body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json.status==='ok') {
+      msg.textContent = '✅ Google Sheets에 저장 완료!';
+    } else {
+      msg.textContent = '⚠️ 저장 중 오류: ' + (json.msg||'알 수 없는 오류');
+    }
+  } catch(e) {
+    msg.textContent = '⚠️ 네트워크 오류 — 기기에는 저장됨';
+  }
+  spin.classList.remove('show');
+  setTimeout(()=>msg.textContent='',5000);
+}
+
+async function fetchDayFromSheet(date) {
+  if (!GAS_URL) return;
+  try {
+    const url = `${GAS_URL}?action=getDay&user=${encodeURIComponent(currentUser)}&date=${date}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.status==='ok' && json.data) {
+      const d = json.data;
+      dayData.checkin  = d.checkin  || dayData.checkin;
+      dayData.checkout = d.checkout || dayData.checkout;
+      dayData.memo     = d.memo     || dayData.memo;
+      if (d.checks) dayData.checks = JSON.parse(d.checks);
+      saveDayLocal();
+      renderDay();
+    }
+  } catch(e) { /* 무시 */ }
+}
+
+/* ── 통계 ── */
+async function loadStats() {
+  const spin = document.getElementById('statsSpinner');
+  spin.classList.add('show');
+
+  let records = [];
+  if (GAS_URL) {
+    try {
+      const url = `${GAS_URL}?action=getAll&user=${encodeURIComponent(currentUser)}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.status==='ok') records = json.data;
+    } catch(e) {}
+  }
+  // localStorage fallback
+  if (!records.length) records = collectLocal();
+
+  renderStats(records);
+  spin.classList.remove('show');
+}
+
+function collectLocal() {
+  const result = [];
+  for (let k in localStorage) {
+    const prefix = `eden_${currentUser}_`;
+    if (k.startsWith(prefix)) {
+      const date = k.slice(prefix.length);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        try {
+          const d = JSON.parse(localStorage.getItem(k));
+          const dow    = dayOfWeek(date);
+          const slots  = SCHEDULE[dow]||[];
+          let total=0, done=0;
+          slots.forEach((sl,si)=>sl.items.forEach((_,ii)=>{
+            total++; if(d.checks?.[`${si}_${ii}`]) done++;
+          }));
+          const rate = total ? Math.round(done/total*100) : 0;
+          const ci = timeToMin(d.checkin);
+          const co = timeToMin(d.checkout);
+          const studyMin = (ci&&co&&co>ci)?co-ci:0;
+          result.push({ date, checkin:d.checkin||'', checkout:d.checkout||'', studyMin, rate, memo:d.memo||'' });
+        } catch(e){}
+      }
+    }
+  }
+  return result.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function renderStats(records) {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - today.getDay() + 1); // 월요일
+
+  const thisWeek  = records.filter(r=>new Date(r.date+'T00:00:00')>=weekStart);
+  const thisMonth = records.filter(r=>r.date.slice(0,7)===today.toISOString().slice(0,7));
+
+  const weekMin  = thisWeek.reduce((s,r)=>s+(r.studyMin||0),0);
+  const monthMin = thisMonth.reduce((s,r)=>s+(r.studyMin||0),0);
+  const weekDays = thisWeek.filter(r=>r.studyMin>0).length;
+  const monthDays= thisMonth.filter(r=>r.studyMin>0).length;
+
+  document.getElementById('weekTotal').textContent = (weekMin/60).toFixed(1);
+  document.getElementById('weekDays').textContent  = weekDays;
+  document.getElementById('monthTotal').textContent= (monthMin/60).toFixed(1);
+  document.getElementById('monthAvg').textContent  = monthDays ? (monthMin/60/monthDays).toFixed(1) : '0';
+
+  // 주간 바 차트
+  const wdays = ['월','화','수','목','금','토','일'];
+  let barsHtml = '';
+  wdays.forEach(d=>{
+    const found = thisWeek.find(r=>dayOfWeek(r.date)===d);
+    const min = found ? (found.studyMin||0) : 0;
+    const pct = Math.min(100, Math.round(min/300*100)); // 5h=100%
+    barsHtml += `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-mid);margin-bottom:3px">
+        <span>${d}요일</span><span>${minToHM(min)}</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+    </div>`;
+  });
+  document.getElementById('weekBars').innerHTML = barsHtml;
+
+  // 과목별 달성률 (이번달)
+  const subMap = {vocab:'어휘',math:'수학',english:'영어',korean:'국어',history:'사회/역사'};
+  const subTotal={}, subDone={};
+  thisMonth.forEach(r=>{
+    const dow  = dayOfWeek(r.date);
+    const slots= SCHEDULE[dow]||[];
+    let checks = {};
+    try { checks = r.checks ? JSON.parse(r.checks) : {}; } catch(e){}
+    slots.forEach((sl,si)=>sl.items.forEach((_,ii)=>{
+      subTotal[sl.tag]=(subTotal[sl.tag]||0)+1;
+      if(checks[`${si}_${ii}`]) subDone[sl.tag]=(subDone[sl.tag]||0)+1;
+    }));
+  });
+  let subHtml = '';
+  Object.entries(subMap).forEach(([tag,label])=>{
+    const t = subTotal[tag]||0;
+    const d = subDone[tag]||0;
+    const pct= t?Math.round(d/t*100):0;
+    subHtml += `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:.8rem;color:var(--text-mid);margin-bottom:3px">
+        <span>${label}</span><span style="font-weight:700;color:var(--green-dark)">${pct}%</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pct}%;background:var(--green-light)"></div></div>
+    </div>`;
+  });
+  document.getElementById('subjectStats').innerHTML = subHtml || '<div style="color:var(--text-light);font-size:.85rem;text-align:center;padding:16px">이번달 기록이 없습니다.</div>';
+}
+
+/* ── 이력 ── */
+async function loadHistory() {
+  const spin = document.getElementById('histSpinner');
+  spin.classList.add('show');
+
+  let records = [];
+  if (GAS_URL) {
+    try {
+      const url = `${GAS_URL}?action=getAll&user=${encodeURIComponent(currentUser)}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.status==='ok') records = json.data;
+    } catch(e){}
+  }
+  if (!records.length) records = collectLocal();
+
+  const month   = document.getElementById('filterMonth').value;
+  const dayFilt = document.getElementById('filterDay').value;
+  let filtered  = records;
+  if (month)   filtered = filtered.filter(r=>r.date.slice(0,7)===month);
+  if (dayFilt) filtered = filtered.filter(r=>dayOfWeek(r.date)===dayFilt);
+  filtered.sort((a,b)=>b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('historyTbody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="no-data">📂 해당 기간 기록이 없습니다.</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(r=>`
+      <tr>
+        <td>${r.date.slice(5)}</td>
+        <td>${dayOfWeek(r.date)}</td>
+        <td>${r.checkin||'-'}</td>
+        <td>${r.checkout||'-'}</td>
+        <td style="font-weight:700">${minToHM(r.studyMin)}</td>
+        <td class="td-rate">${r.rate||0}%</td>
+      </tr>`).join('');
+  }
+  spin.classList.remove('show');
+}
+</script>
+
+<!-- ══════════════════════════════════════════
+     GitHub README: GAS 설정 안내 (주석)
+     
+     [Google Apps Script 배포 방법]
+     1. https://script.google.com 접속
+     2. 새 프로젝트 생성 → 아래 코드 붙여넣기
+     3. '배포' → '새 배포' → 웹앱으로 배포
+        - 실행자: 나(Google 계정)
+        - 액세스 권한: 모든 사용자
+     4. 배포 URL을 이 파일의 GAS_URL 변수에 붙여넣기
+
+     [GAS 코드 — Code.gs]
+     ───────────────────────────────────────
+     const SHEET_ID = '1uYae8-WH_aopvSFTcQfuSNPE1E1S9lttA5-D8wBg';
+     const SHEET_NAME = 'Records';
+
+     function doGet(e) {
+       const p = e.parameter;
+       const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+       if (p.action==='getAll') {
+         const rows = sheet.getDataRange().getValues();
+         const header = rows[0];
+         const data = rows.slice(1)
+           .filter(r=>r[0]===p.user)
+           .map(r=>Object.fromEntries(header.map((h,i)=>[h,r[i]])));
+         return json({status:'ok',data});
+       }
+       if (p.action==='getDay') {
+         const rows = sheet.getDataRange().getValues();
+         const header = rows[0];
+         const row = rows.slice(1).find(r=>r[0]===p.user&&r[1]===p.date);
+         if (!row) return json({status:'ok',data:null});
+         return json({status:'ok',data:Object.fromEntries(header.map((h,i)=>[h,row[i]]))});
+       }
+       return json({status:'err',msg:'unknown action'});
+     }
+
+     function doPost(e) {
+       const p = JSON.parse(e.postData.contents);
+       if (p.action==='save') {
+         const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+         const rows = sheet.getDataRange().getValues();
+         const idx  = rows.slice(1).findIndex(r=>r[0]===p.user&&r[1]===p.date);
+         const row  = [p.user,p.date,p.checkin,p.checkout,p.studyMin,p.rate,p.memo,p.checks,new Date().toISOString()];
+         if (idx>=0) sheet.getRange(idx+2,1,1,row.length).setValues([row]);
+         else sheet.appendRow(row);
+         return json({status:'ok'});
+       }
+       return json({status:'err',msg:'unknown action'});
+     }
+
+     function json(obj) {
+       return ContentService.createTextOutput(JSON.stringify(obj))
+         .setMimeType(ContentService.MimeType.JSON);
+     }
+
+     function setupSheet() {
+       const ss = SpreadsheetApp.openById(SHEET_ID);
+       let sheet = ss.getSheetByName(SHEET_NAME);
+       if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+       sheet.getRange(1,1,1,9).setValues([['user','date','checkin','checkout','studyMin','rate','memo','checks','updatedAt']]);
+     }
+     ───────────────────────────────────────
+══════════════════════════════════════════ -->
+</body>
+</html>
